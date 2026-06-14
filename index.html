@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>태양광 발전 파장별 효율 시뮬레이션</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .simulation-area {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .slider-container {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .slider-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .wavelength-slider {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to right, #8b00ff, #0000ff, #00ffff, #00ff00, #ffff00, #ff8000, #ff0000);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .wavelength-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        
+        .wavelength-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        
+        .info-panel {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 200px;
+        }
+        
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .canvas-wrapper {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            background: #1a1a2e;
+        }
+        
+        .efficiency-display {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        .spectrum-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .theory-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .theory-content {
+            color: #f8f9fa;
+            line-height: 1.6;
+        }
+        
+        .theory-content h2 {
+            color: #74b9ff;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.8em;
+        }
+        
+        .theory-content h3 {
+            color: #00cec9;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .theory-content p {
+            margin-bottom: 15px;
+        }
+        
+        .theory-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .theory-content li {
+            margin-bottom: 8px;
+        }
+        
+        .theory-content strong {
+            color: #fdcb6e;
+        }
+        
+        .efficiency-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .efficiency-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ffaa00, #44ff44);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>태양광 발전 파장별 효율 시뮬레이션</h1>
+        
+        <div class="simulation-area">
+            <div class="controls">
+                <div class="slider-container">
+                    <label class="slider-label">빛의 파장: <span id="wavelengthValue">550</span> nm</label>
+                    <input type="range" id="wavelengthSlider" class="wavelength-slider" 
+                           min="380" max="750" value="550" step="5">
+                </div>
+                <div class="info-panel">
+                    <div><strong>파장 영역:</strong> <span id="spectrumType">가시광선</span></div>
+                    <div><strong>색상:</strong> <span id="colorName">초록</span></div>
+                    <div><strong>에너지:</strong> <span id="photonEnergy">2.25</span> eV</div>
+                </div>
+            </div>
+            
+            <div class="canvas-container">
+                <div class="canvas-wrapper">
+                    <h3>태양광 패널</h3>
+                    <canvas id="solarPanel" width="400" height="300"></canvas>
+                </div>
+                <div class="canvas-wrapper">
+                    <h3>빛 시뮬레이션</h3>
+                    <canvas id="lightSim" width="400" height="300"></canvas>
+                </div>
+            </div>
+            
+            <div class="efficiency-display">
+                <div>발전 효율: <span id="efficiencyValue">22.1</span>%</div>
+                <div class="efficiency-bar">
+                    <div class="efficiency-fill" id="efficiencyBar"></div>
+                </div>
+            </div>
+            
+            <div class="spectrum-info">
+                <div class="info-card">
+                    <strong>보라/파랑</strong><br>
+                    380-450 nm<br>
+                    높은 에너지, 효율 2-20%
+                </div>
+                <div class="info-card">
+                    <strong>초록</strong><br>
+                    450-550 nm<br>
+                    최적 효율 영역 20-25%
+                </div>
+                <div class="info-card">
+                    <strong>빨강</strong><br>
+                    550-750 nm<br>
+                    효율 감소 25-12%
+                </div>
+            </div>
+            
+            <div class="theory-section">
+                <h2>시뮬레이션에 적용된 물리 이론</h2>
+                
+                <div class="theory-content">
+                    <h3>1. 광전 효과 (Photoelectric Effect)</h3>
+                    <p><strong>E = hf = hc/λ</strong></p>
+                    <p>아인슈타인이 발견한 광전 효과 이론에 따르면, 광자의 에너지는 주파수(또는 파장)에 비례합니다. 
+                    시뮬레이션에서는 이 공식을 사용하여 각 파장별 광자 에너지를 계산합니다.</p>
+                    <ul>
+                        <li>h = 4.136 × 10⁻¹⁵ eV·s (플랑크 상수)</li>
+                        <li>c = 2.998 × 10⁸ m/s (빛의 속도)</li>
+                        <li>λ = 파장 (nm)</li>
+                    </ul>
+                    
+                    <h3>2. 실리콘 밴드갭 이론</h3>
+                    <p><strong>Eg = 1.12 eV (실리콘의 밴드갭)</strong></p>
+                    <p>실리콘 태양전지에서 전자-정공 쌍이 생성되려면 광자 에너지가 실리콘의 밴드갭(1.12 eV) 이상이어야 합니다. 
+                    이는 약 1100nm 이하의 파장에 해당합니다.</p>
+                    
+                    <h3>3. 양자 효율 (Quantum Efficiency)</h3>
+                    <p><strong>QE(λ) = 흡수된 광자 수 / 입사된 광자 수</strong></p>
+                    <p>실제 태양전지의 양자 효율은 파장에 따라 달라집니다:</p>
+                    <ul>
+                        <li><strong>단파장 영역:</strong> 표면 재결합 손실로 효율 감소</li>
+                        <li><strong>가시광선 영역:</strong> 최적의 흡수 특성으로 높은 효율</li>
+                        <li><strong>장파장 영역:</strong> 침투 깊이 증가와 후면 재결합으로 효율 감소</li>
+                    </ul>
+                    
+                    <h3>4. 반사 손실 (Reflection Loss)</h3>
+                    <p><strong>R = ((n₁-n₂)/(n₁+n₂))²</strong></p>
+                    <p>공기(n₁≈1)와 실리콘(n₂≈3.5) 사이의 굴절률 차이로 인한 반사 손실입니다. 
+                    실제 태양전지에서는 반사방지막을 사용하여 이를 최소화합니다.</p>
+                    
+                    <h3>5. 흡수 계수 (Absorption Coefficient)</h3>
+                    <p><strong>α(λ) = 4πk/λ</strong></p>
+                    <p>실리콘의 흡수 계수는 파장에 따라 크게 변합니다:</p>
+                    <ul>
+                        <li><strong>단파장:</strong> 높은 흡수 계수, 표면 근처에서 대부분 흡수</li>
+                        <li><strong>장파장:</strong> 낮은 흡수 계수, 깊은 침투로 재결합 증가</li>
+                    </ul>
+                    
+                    <h3>6. 전력 변환 효율</h3>
+                    <p><strong>η = (Voc × Isc × FF) / Pin</strong></p>
+                    <p>실제 태양전지의 전력 변환 효율은 개방전압(Voc), 단락전류(Isc), 충진인자(FF)의 곱으로 결정됩니다. 
+                    파장별로 이 값들이 달라지므로 전체 효율도 변화합니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const slider = document.getElementById('wavelengthSlider');
+        const wavelengthValue = document.getElementById('wavelengthValue');
+        const spectrumType = document.getElementById('spectrumType');
+        const colorName = document.getElementById('colorName');
+        const photonEnergy = document.getElementById('photonEnergy');
+        const efficiencyValue = document.getElementById('efficiencyValue');
+        const efficiencyBar = document.getElementById('efficiencyBar');
+        
+        const solarCanvas = document.getElementById('solarPanel');
+        const lightCanvas = document.getElementById('lightSim');
+        const solarCtx = solarCanvas.getContext('2d');
+        const lightCtx = lightCanvas.getContext('2d');
+        
+        // 태양전지 효율 함수 (가시광선 중심, 실제 실리콘 태양전지 특성 기반)
+        function calculateEfficiency(wavelength) {
+            // 실리콘 태양전지의 가시광선 영역 양자 효율 곡선
+            if (wavelength < 380) return 0;
+            if (wavelength < 450) return 2 + (wavelength - 380) / 70 * 18; // 보라-파랑 (2-20%)
+            if (wavelength < 550) return 20 + (wavelength - 450) / 100 * 5; // 파랑-초록 (20-25%)
+            if (wavelength < 650) return 25 - (wavelength - 550) / 100 * 3; // 초록-빨강 (25-22%)
+            if (wavelength < 750) return 22 - (wavelength - 650) / 100 * 10; // 빨강-근적외선 (22-12%)
+            return Math.max(0, 12 - (wavelength - 750) / 50 * 12); // 근적외선 영역
+        }
+        
+        // 파장을 RGB 색상으로 변환
+        function wavelengthToRGB(wavelength) {
+            let r = 0, g = 0, b = 0;
+            
+            if (wavelength >= 380 && wavelength < 440) {
+                r = -(wavelength - 440) / (440 - 380);
+                g = 0;
+                b = 1;
+            } else if (wavelength >= 440 && wavelength < 490) {
+                r = 0;
+                g = (wavelength - 440) / (490 - 440);
+                b = 1;
+            } else if (wavelength >= 490 && wavelength < 510) {
+                r = 0;
+                g = 1;
+                b = -(wavelength - 510) / (510 - 490);
+            } else if (wavelength >= 510 && wavelength < 580) {
+                r = (wavelength - 510) / (580 - 510);
+                g = 1;
+                b = 0;
+            } else if (wavelength >= 580 && wavelength < 645) {
+                r = 1;
+                g = -(wavelength - 645) / (645 - 580);
+                b = 0;
+            } else if (wavelength >= 645 && wavelength < 781) {
+                r = 1;
+                g = 0;
+                b = 0;
+            } else {
+                // UV와 IR 영역
+                r = 0.5; g = 0.5; b = 0.5;
+            }
+            
+            // 강도 조정
+            let factor = 1;
+            if (wavelength >= 380 && wavelength < 420) {
+                factor = 0.3 + 0.7 * (wavelength - 380) / (420 - 380);
+            } else if (wavelength >= 700 && wavelength < 781) {
+                factor = 0.3 + 0.7 * (781 - wavelength) / (781 - 700);
+            }
+            
+            r = Math.round(255 * r * factor);
+            g = Math.round(255 * g * factor);
+            b = Math.round(255 * b * factor);
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        // 색상 이름 반환
+        function getColorName(wavelength) {
+            if (wavelength < 380) return '자외선';
+            if (wavelength < 450) return '보라';
+            if (wavelength < 495) return '파랑';
+            if (wavelength < 570) return '초록';
+            if (wavelength < 590) return '노랑';
+            if (wavelength < 620) return '주황';
+            if (wavelength < 750) return '빨강';
+            return '적외선';
+        }
+        
+        // 스펙트럼 영역 반환
+        function getSpectrumType(wavelength) {
+            if (wavelength < 400) return '자외선 (UV)';
+            if (wavelength < 700) return '가시광선';
+            return '적외선 (IR)';
+        }
+        
+        // 광자 에너지 계산 (eV)
+        function calculatePhotonEnergy(wavelength) {
+            const h = 4.135667696e-15; // 플랑크 상수 (eV·s)
+            const c = 299792458; // 빛의 속도 (m/s)
+            const wavelengthM = wavelength * 1e-9; // nm를 m로 변환
+            return (h * c / wavelengthM).toFixed(2);
+        }
+        
+        // 태양광 패널 그리기
+        function drawSolarPanel(efficiency) {
+            solarCtx.clearRect(0, 0, solarCanvas.width, solarCanvas.height);
+            
+            // 패널 프레임
+            solarCtx.fillStyle = '#2c3e50';
+            solarCtx.fillRect(50, 50, 300, 200);
+            
+            // 태양전지 셀들
+            const cellSize = 45;
+            const gap = 5;
+            const rows = 4;
+            const cols = 6;
+            
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const x = 60 + j * (cellSize + gap);
+                    const y = 60 + i * (cellSize + gap);
+                    
+                    // 셀 베이스
+                    solarCtx.fillStyle = '#1a252f';
+                    solarCtx.fillRect(x, y, cellSize, cellSize);
+                    
+                    // 효율에 따른 발광 효과
+                    const intensity = efficiency / 100;
+                    solarCtx.fillStyle = `rgba(100, 200, 255, ${intensity * 0.3})`;
+                    solarCtx.fillRect(x, y, cellSize, cellSize);
+                    
+                    // 셀 격자
+                    solarCtx.strokeStyle = '#34495e';
+                    solarCtx.lineWidth = 1;
+                    solarCtx.strokeRect(x, y, cellSize, cellSize);
+                    
+                    // 내부 격자
+                    solarCtx.beginPath();
+                    solarCtx.moveTo(x + cellSize/2, y);
+                    solarCtx.lineTo(x + cellSize/2, y + cellSize);
+                    solarCtx.moveTo(x, y + cellSize/2);
+                    solarCtx.lineTo(x + cellSize, y + cellSize/2);
+                    solarCtx.stroke();
+                }
+            }
+            
+            // 전극 및 배선
+            solarCtx.strokeStyle = '#7f8c8d';
+            solarCtx.lineWidth = 2;
+            solarCtx.beginPath();
+            solarCtx.moveTo(350, 60);
+            solarCtx.lineTo(370, 60);
+            solarCtx.moveTo(350, 240);
+            solarCtx.lineTo(370, 240);
+            solarCtx.stroke();
+            
+            // 효율 표시
+            solarCtx.fillStyle = 'white';
+            solarCtx.font = '16px Arial';
+            solarCtx.textAlign = 'center';
+            solarCtx.fillText(`${efficiency.toFixed(1)}% 효율`, 200, 280);
+        }
+        
+        // 빛 시뮬레이션 그리기
+        function drawLightSimulation(wavelength) {
+            lightCtx.clearRect(0, 0, lightCanvas.width, lightCanvas.height);
+            
+            const color = wavelengthToRGB(wavelength);
+            const time = Date.now() / 1000;
+            const efficiency = calculateEfficiency(wavelength);
+            
+            // 태양 그리기
+            const sunX = 60;
+            const sunY = 50;
+            const sunRadius = 20;
+            
+            // 태양 본체
+            const gradient = lightCtx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius);
+            gradient.addColorStop(0, '#ffff99');
+            gradient.addColorStop(0.7, '#ffcc33');
+            gradient.addColorStop(1, '#ff9900');
+            
+            lightCtx.fillStyle = gradient;
+            lightCtx.beginPath();
+            lightCtx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+            lightCtx.fill();
+            
+            // 태양광 패널 그리기 (더 사실적)
+            const panelX = 250;
+            const panelY = 120;
+            const panelWidth = 120;
+            const panelHeight = 80;
+            const panelAngle = -Math.PI / 6; // 30도 기울임
+            
+            lightCtx.save();
+            lightCtx.translate(panelX + panelWidth/2, panelY + panelHeight/2);
+            lightCtx.rotate(panelAngle);
+            
+            // 패널 프레임
+            lightCtx.fillStyle = '#34495e';
+            lightCtx.fillRect(-panelWidth/2 - 5, -panelHeight/2 - 5, panelWidth + 10, panelHeight + 10);
+            
+            // 패널 표면 (반사 효과 포함)
+            const panelGradient = lightCtx.createLinearGradient(-panelWidth/2, -panelHeight/2, panelWidth/2, panelHeight/2);
+            panelGradient.addColorStop(0, '#1a252f');
+            panelGradient.addColorStop(0.3, '#2c3e50');
+            panelGradient.addColorStop(0.7, '#1a252f');
+            panelGradient.addColorStop(1, '#0f1419');
+            
+            lightCtx.fillStyle = panelGradient;
+            lightCtx.fillRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight);
+            
+            // 태양전지 셀 격자
+            lightCtx.strokeStyle = '#34495e';
+            lightCtx.lineWidth = 1;
+            for (let i = 1; i < 6; i++) {
+                const x = -panelWidth/2 + (panelWidth * i / 6);
+                lightCtx.beginPath();
+                lightCtx.moveTo(x, -panelHeight/2);
+                lightCtx.lineTo(x, panelHeight/2);
+                lightCtx.stroke();
+            }
+            for (let i = 1; i < 4; i++) {
+                const y = -panelHeight/2 + (panelHeight * i / 4);
+                lightCtx.beginPath();
+                lightCtx.moveTo(-panelWidth/2, y);
+                lightCtx.lineTo(panelWidth/2, y);
+                lightCtx.stroke();
+            }
+            
+            // 효율에 따른 광 흡수 효과
+            lightCtx.fillStyle = color.replace('rgb', 'rgba').replace(')', `, ${efficiency / 100})`);
+            lightCtx.fillRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight);
+            
+            lightCtx.restore();
+            
+            // 입사광선들 (태양에서 패널로)
+            const numRays = 8;
+            const centerX = panelX + panelWidth/2;
+            const centerY = panelY + panelHeight/2;
+            
+            for (let i = 0; i < numRays; i++) {
+                const rayOffset = (i - numRays/2) * 12;
+                const startX = sunX + 25;
+                const startY = sunY + rayOffset;
+                const endX = centerX - 60 + rayOffset * 0.3;
+                const endY = centerY - 20 + rayOffset * 0.2;
+                
+                // 광선의 투명도 애니메이션
+                const opacity = 0.4 + 0.3 * Math.sin(time * 3 + i * 0.5);
+                
+                // 입사광선
+                const rayGradient = lightCtx.createLinearGradient(startX, startY, endX, endY);
+                rayGradient.addColorStop(0, color.replace('rgb', 'rgba').replace(')', `, 0)`));
+                rayGradient.addColorStop(0.7, color.replace('rgb', 'rgba').replace(')', `, ${opacity})`));
+                rayGradient.addColorStop(1, color.replace('rgb', 'rgba').replace(')', `, ${opacity * 1.5})`));
+                
+                lightCtx.strokeStyle = rayGradient;
+                lightCtx.lineWidth = 3;
+                lightCtx.beginPath();
+                lightCtx.moveTo(startX, startY);
+                lightCtx.lineTo(endX, endY);
+                lightCtx.stroke();
+                
+                // 광선 끝의 화살표
+                const angle = Math.atan2(endY - startY, endX - startX);
+                const arrowSize = 8;
+                lightCtx.strokeStyle = color.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+                lightCtx.lineWidth = 2;
+                lightCtx.beginPath();
+                lightCtx.moveTo(endX - arrowSize * Math.cos(angle - 0.5), endY - arrowSize * Math.sin(angle - 0.5));
+                lightCtx.lineTo(endX, endY);
+                lightCtx.lineTo(endX - arrowSize * Math.cos(angle + 0.5), endY - arrowSize * Math.sin(angle + 0.5));
+                lightCtx.stroke();
+                
+                // 반사광 (효율이 낮을 때 더 많이 반사)
+                const reflectance = (100 - efficiency) / 100;
+                if (reflectance > 0.1) {
+                    const reflectX = endX + 40;
+                    const reflectY = endY - 30;
+                    const reflectOpacity = opacity * reflectance * 0.6;
+                    
+                    lightCtx.strokeStyle = color.replace('rgb', 'rgba').replace(')', `, ${reflectOpacity})`);
+                    lightCtx.lineWidth = 2;
+                    lightCtx.beginPath();
+                    lightCtx.moveTo(endX, endY);
+                    lightCtx.lineTo(reflectX, reflectY);
+                    lightCtx.stroke();
+                }
+            }
+            
+            // 흡수된 빛의 전기 에너지 변환 표시
+            if (efficiency > 5) {
+                lightCtx.strokeStyle = '#00ff88';
+                lightCtx.lineWidth = 2;
+                lightCtx.setLineDash([5, 5]);
+                
+                // 전기적 에너지 흐름 표시
+                const electricFlow = Math.sin(time * 4) * 0.3 + 0.7;
+                lightCtx.globalAlpha = electricFlow;
+                
+                lightCtx.beginPath();
+                lightCtx.moveTo(centerX + 50, centerY);
+                lightCtx.lineTo(centerX + 80, centerY);
+                lightCtx.lineTo(centerX + 80, centerY + 20);
+                lightCtx.stroke();
+                
+                lightCtx.globalAlpha = 1;
+                lightCtx.setLineDash([]);
+                
+                // 전력 표시
+                lightCtx.fillStyle = '#00ff88';
+                lightCtx.font = '12px Arial';
+                lightCtx.textAlign = 'left';
+                lightCtx.fillText('전력 출력', centerX + 85, centerY + 15);
+            }
+            
+            // 패널 정보 표시
+            lightCtx.fillStyle = 'white';
+            lightCtx.font = '12px Arial';
+            lightCtx.textAlign = 'left';
+            lightCtx.fillText(`흡수율: ${efficiency.toFixed(1)}%`, 10, 250);
+            lightCtx.fillText(`반사율: ${(100-efficiency).toFixed(1)}%`, 10, 265);
+            lightCtx.fillText(`λ = ${wavelength} nm`, 10, 280);
+            lightCtx.fillText(`E = ${calculatePhotonEnergy(wavelength)} eV`, 150, 280);
+        }
+        
+        // 업데이트 함수
+        function updateSimulation() {
+            const wavelength = parseInt(slider.value);
+            const efficiency = calculateEfficiency(wavelength);
+            
+            wavelengthValue.textContent = wavelength;
+            spectrumType.textContent = getSpectrumType(wavelength);
+            colorName.textContent = getColorName(wavelength);
+            photonEnergy.textContent = calculatePhotonEnergy(wavelength);
+            efficiencyValue.textContent = efficiency.toFixed(1);
+            efficiencyBar.style.width = `${efficiency}%`;
+            
+            drawSolarPanel(efficiency);
+            drawLightSimulation(wavelength);
+        }
+        
+        // 애니메이션 루프
+        function animate() {
+            const wavelength = parseInt(slider.value);
+            drawLightSimulation(wavelength);
+            requestAnimationFrame(animate);
+        }
+        
+        // 이벤트 리스너
+        slider.addEventListener('input', updateSimulation);
+        
+        // 초기화
+        updateSimulation();
+        animate();
+    </script>
+</body>
+</html>
